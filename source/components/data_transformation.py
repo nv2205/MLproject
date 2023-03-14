@@ -37,9 +37,6 @@ class DataTransformation:
                 "test preparation course",
             ]
 
-            logging.info("Num_columns: ",numerical_columns)
-            logging.info("Cat_columns: ",categorical_columns)
-
             # for numerical columns, imputer will fill missing values with median values
             # and StandardScaler will scale numerical columns.
             num_pipeline = Pipeline(
