@@ -9,7 +9,7 @@ from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
-from source.exception import CoustomException
+from source.exception import CustomException
 from source.logger import logging
 from source.utils import save_object
 
@@ -28,13 +28,13 @@ class DataTransformation:
         Transforms numerical and categorical data.
         """
         try:
-            numerical_columns = ["reading score", "writing score"]
+            numerical_columns = ["reading_score", "writing_score"]
             categorical_columns = [
                 "gender",
-                "race/ethnicity",
-                "parental level of education",
+                "race_ethnicity",
+                "parental_level_of_education",
                 "lunch",
-                "test preparation course",
+                "test_preparation_course",
             ]
 
             # for numerical columns, imputer will fill missing values with median values
@@ -69,7 +69,7 @@ class DataTransformation:
             return preprocessor
 
         except Exception as e:
-            raise CoustomException(e, sys)
+            raise CustomException(e, sys)
 
     def initiate_data_transformation(self, train_path, test_path):
         try:
@@ -81,7 +81,7 @@ class DataTransformation:
             preprocessor = self.get_data_transformer_object()
             logging.info("Obtained preprocessor.")
 
-            target_column = "math score"
+            target_column = "math_score"
 
             input_feature_train_df = train_df.drop(columns=[target_column], axis=1)
             target_feature_train_df = train_df[target_column]
@@ -113,4 +113,4 @@ class DataTransformation:
             )
 
         except Exception as e:
-            raise CoustomException(e, sys)
+            raise CustomException(e, sys)

@@ -1,101 +1,110 @@
 import os
 import sys
-import pandas as pd
-import numpy as np
-
 from dataclasses import dataclass
-from sklearn.linear_model import LinearRegression
-from sklearn.neighbors import KNeighborsRegressor
-from sklearn.tree import DecisionTreeRegressor
+
 from sklearn.ensemble import (
     AdaBoostRegressor,
     GradientBoostingRegressor,
     RandomForestRegressor,
 )
-from xgboost import XGBRegressor
+from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
-from sklearn.model_selection import GridSearchCV
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.tree import DecisionTreeRegressor
+from xgboost import XGBRegressor
 
-from source.exception import CoustomException
+from source.exception import CustomException
 from source.logger import logging
-from source.utils import save_object, evaluate_model
 
+from source.utils import save_object,evaluate_model
 
 @dataclass
 class ModelTrainerConfig:
-    trained_model_file_path = os.path.join("artifacts", "model.pkl")
-
+    trained_model_file_path=os.path.join("artifacts","model.pkl")
 
 class ModelTrainer:
     def __init__(self):
-        self.model_trainer_config = ModelTrainerConfig()
+        self.model_trainer_config=ModelTrainerConfig()
 
-    def initiate_model_trainer(self, train_array, test_array):
+
+    def initiate_model_trainer(self,train_array,test_array):
         try:
-            logging.info("Spliting train and test data.")
-            X_train, y_train, X_test, y_test = (
-                train_array[:, :-1],
-                train_array[:, -1],
-                test_array[:, :-1],
-                test_array[:, -1],
+            logging.info("Split training and test input data")
+            X_train,y_train,X_test,y_test=(
+                train_array[:,:-1],
+                train_array[:,-1],
+                test_array[:,:-1],
+                test_array[:,-1]
             )
-
             models = {
-                "Random_forest": RandomForestRegressor(),
-                "Decison_tree": DecisionTreeRegressor(),
-                "Gradient_Boosting": GradientBoostingRegressor(),
-                "Linear_regrassor": LinearRegression(),
-                "K-Neighbours_regressor": KNeighborsRegressor(),
-                "XGBoost_regressor": XGBRegressor(),
-                "Adaboost_regressor": AdaBoostRegressor(),
+                "Random Forest": RandomForestRegressor(),
+                "Decision Tree": DecisionTreeRegressor(),
+                "Gradient Boosting": GradientBoostingRegressor(),
+                "Linear Regression": LinearRegression(),
+                "XGBRegressor": XGBRegressor(),
+                "AdaBoost Regressor": AdaBoostRegressor(),
+            }
+            params={
+                "Decision Tree": {
+                    'criterion':['squared_error', 'friedman_mse', 'absolute_error', 'poisson'],
+                    # 'splitter':['best','random'],
+                    # 'max_features':['sqrt','log2'],
+                },
+                "Random Forest":{
+                    # 'criterion':['squared_error', 'friedman_mse', 'absolute_error', 'poisson'],
+                
+                    # 'max_features':['sqrt','log2',None],
+                    'n_estimators': [8,16,32,64,128,256]
+                },
+                "Gradient Boosting":{
+                    # 'loss':['squared_error', 'huber', 'absolute_error', 'quantile'],
+                    'learning_rate':[.1,.01,.05,.001],
+                    'subsample':[0.6,0.7,0.75,0.8,0.85,0.9],
+                    # 'criterion':['squared_error', 'friedman_mse'],
+                    # 'max_features':['auto','sqrt','log2'],
+                    'n_estimators': [8,16,32,64,128,256]
+                },
+                "Linear Regression":{},
+                "XGBRegressor":{
+                    'learning_rate':[.1,.01,.05,.001],
+                    'n_estimators': [8,16,32,64,128,256]
+                },
+                "AdaBoost Regressor":{
+                    'learning_rate':[.1,.01,0.5,.001],
+                    # 'loss':['linear','square','exponential'],
+                    'n_estimators': [8,16,32,64,128,256]
+                }
+                
             }
 
-            logging.info("Model report intiated.")
-            model_report: dict = evaluate_model(
-                X_train, y_train, X_test, y_test, models
-            )
-
+            model_report:dict=evaluate_model(X_train=X_train,y_train=y_train,X_test=X_test,y_test=y_test,
+                                                models=models,param=params)
+            
+            ## To get best model score from dict
             best_model_score = max(sorted(model_report.values()))
+
+            ## To get best model name from dict
 
             best_model_name = list(model_report.keys())[
                 list(model_report.values()).index(best_model_score)
             ]
-
             best_model = models[best_model_name]
 
-            print(
-                "Best model is {} with score of {} before tuning.".format(
-                    best_model_name, best_model_score
-                )
+            if best_model_score<0.6:
+                raise CustomException("No best model found")
+            else:
+                print('Best model:',best_model_name)
+            logging.info(f"Best found model on both training and testing dataset")
+
+            save_object(
+                file_path=self.model_trainer_config.trained_model_file_path,
+                object=best_model
             )
 
-            if best_model_score < 0.6:
-                raise CoustomException("No best model found.")
+            predicted=best_model.predict(X_test)
 
-            save_object(self.model_trainer_config.trained_model_file_path, best_model)
-
-            y_pred = best_model.predict(X_test)
-            best_score = r2_score(y_test, y_pred)
-
-            ###Model Tuning
-            logging.info('Enter model tuning.')
-            param = dict()
-            param['fit_intercept'] = [True,False]
-            param['n_jobs'] = [-1,2,3,1]
-            param['positive']=[True,False]
-
-            X = np.concatenate((X_train,X_test),axis=0)
-            y = np.concatenate((y_train,y_test),axis=0)
-            search = GridSearchCV(best_model, param_grid=param, n_jobs=-1)
-            result = search.fit(X,y)
-            print('Score after Tuning: %s' % result.best_score_)
-            print('Best Hyperparameters: %s' % result.best_params_)
-            logging.info('Modle tuned with score {}'.format(result.best_score_))
-
-            if (best_score>=result.best_score_):
-                return best_score
-            else:
-                return result.best_score_
-
+            r2_square = r2_score(y_test, predicted)
+            return r2_square
+            
         except Exception as e:
-            raise CoustomException(e, sys)
+            raise CustomException(e,sys)

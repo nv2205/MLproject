@@ -1,6 +1,6 @@
 import os
 import sys
-from source.exception import CoustomException
+from source.exception import CustomException
 from source.logger import logging
 import pandas as pd
 
@@ -26,6 +26,7 @@ class DataIngestion:
         logging.info('Entered the data ingistion method or component')
         try:
             df = pd.read_csv('D:/MLProject/notebook/data/StudentsPerformance.csv')
+            df.columns = ['gender','race_ethnicity','parental_level_of_education','lunch','test_preparation_course','math_score','reading_score','writing_score']
             logging.info('Read data and load as dataframe')
 
             os.makedirs(os.path.dirname(self.ingestion_config.train_data_path),exist_ok=True)
@@ -44,7 +45,7 @@ class DataIngestion:
             )
 
         except Exception as e:
-            raise CoustomException(e,sys)
+            raise CustomException(e,sys)
         
 if __name__=='__main__':
     obj = DataIngestion()
